@@ -10,9 +10,8 @@ use tempfile::TempDir;
 use tracing::{debug, error, info, warn};
 use tracing_subscriber::EnvFilter;
 
-/// Backup Tools
 #[derive(Parser, Debug)]
-#[command(name = "backup", arg_required_else_help = true, version, about)]
+#[command(name = "backup", arg_required_else_help = true, about, version, author)]
 struct Args {
   /// Backup data directory.
   #[arg(long, env = "BACKUP_DATA_PATH", value_delimiter = ',', required = true)]
