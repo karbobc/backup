@@ -1,0 +1,54 @@
+name: Release
+
+on:
+  push:
+    tags: [ "v*" ]
+    branches: [ "master" ]
+  workflow_dispatch:
+
+jobs:
+  release:
+    name: Build for ${{ matrix.job.target }}
+    strategy:
+      fail-fast: true
+      matrix:
+        job:
+          - { target: "x86_64-unknown-linux-musl", os: "ubuntu-latest" }
+          - { target: "x86_64-unknown-linux-gnu",  os: "ubuntu-latest" }
+    runs-on: ${{ matrix.job.os }}
+    steps:
+      - name: Checkout source code
+        uses: actions/checkout@v4
+
+      - name: Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          prefix-key: ${{ matrix.job.target }}
+
+      - name: Build release
+        run: |
+          cargo build --release --target ${{ matrix.job.target }}
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ matrix.platform.target }}-artifact
+          path: target/${{ matrix.platform.target }}/release/backup
+          if-no-files-found: error
+
+      - name: Archive binary
+        if: startsWith(github.ref, 'refs/tags/')
+        run: |
+          pushd target/${{ matrix.platform.target }}/release
+          tar -zcvf backup-${{ github.ref }}.${{ matrix.platform.target }}.tar.gz backup
+          shasum -a 256 backup-${{ github.ref }}.${{ matrix.platform.target }}.tar.gz > backup-${{ github.ref }}.${{ matrix.platform.target }}.tar.gz.sha256
+          popd
+
+      - name: Upload to GitHub release
+        uses: softprops/action-gh-release@v2
+        if: ${{ startsWith(github.ref, 'refs/tags/') }}
+        with:
+          files: |
+            target/${{ matrix.platform.target }}/release/backup-*.tar.gz*
+          prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') }}
+          generate_release_notes: true
