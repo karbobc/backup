@@ -20,18 +20,14 @@ jobs:
       - name: Checkout source code
         uses: actions/checkout@v4
 
-      - name: Install build dependencies
-        run: |
-          set -e
-          sudo apt-get update
-          sudo apt-get install -y openssl pkg-config
-
       - name: Rust cache
         uses: Swatinem/rust-cache@v2
         with:
           prefix-key: ${{ matrix.job.target }}
 
       - name: Build release
+        env:
+          PKG_CONFIG_ALLOW_CROSS: 1
         run: |
           rustup target add ${{ matrix.job.target }}
           cargo build --release --target ${{ matrix.job.target }}
