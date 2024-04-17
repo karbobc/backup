@@ -28,13 +28,14 @@ jobs:
 
       - name: Build release
         run: |
+          rustup target add ${{ matrix.job.target }}
           cargo build --release --target ${{ matrix.job.target }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.job.target }}-artifact
-          path: target/${{ matrix.job.target }}/release/backup
+          path: target/${{ matrix.job.target }}/release/backup.exe
           if-no-files-found: error
 
       - name: Archive binary
