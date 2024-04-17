@@ -223,10 +223,28 @@ fn upload_by_rclone(
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+  // tracing
+  tracing_subscriber::fmt()
+    .with_env_filter(EnvFilter::from_default_env())
+    .with_timer(tracing_subscriber::fmt::time::time())
+    .init();
+
+  // load dotenv
   if dotenvy::dotenv().is_err() {
     info!("can not detect .env file");
   }
+
+  // cli
   let args = Args::parse();
+  if env::var("RUST_LOG").is_err() {
+    if args.debug {
+      env::set_var("RUST_LOG", "backup=debug,reqwest=debug");
+    } else {
+      env::set_var("RUST_LOG", "backup=info,reqwest=warn");
+    }
+  }
+
+  // check
   if args.data_path.is_empty() {
     bail!("data path can not be empty");
   }
@@ -235,23 +253,12 @@ async fn main() -> anyhow::Result<()> {
       bail!("data path [{path}] can not be found");
     }
   }
-  if args.rclone_remote_name.is_empty() {
-    bail!("rclone remote name can not be empty");
+  if args.rclone_remote_name.iter().any(|s| s.is_empty()) {
+    bail!("rclone remote name can not contain empty name");
   }
   if args.rclone_remote_path == "/" {
     bail!("rclone remote path can not equals to /");
   }
-  if env::var("RUST_LOG").is_err() {
-    if args.debug {
-      env::set_var("RUST_LOG", "backup=debug,reqwest=debug");
-    } else {
-      env::set_var("RUST_LOG", "backup=info,reqwest=warn");
-    }
-  }
-  tracing_subscriber::fmt()
-    .with_env_filter(EnvFilter::from_default_env())
-    .with_timer(tracing_subscriber::fmt::time::time())
-    .init();
 
   let temp_dir = TempDir::new()?;
   let temp_data_dir = format!("{}/data", temp_dir.path().to_string_lossy());
@@ -298,7 +305,9 @@ async fn main() -> anyhow::Result<()> {
         &args.ntfy_password,
         &args.ntfy_topic,
       ) {
-        notify::notify_by_nty(base_url, username, password, topic, &message).await?;
+        if !base_url.is_empty() && !username.is_empty() && !password.is_empty() && !topic.is_empty() {
+          notify::notify_by_nty(base_url, username, password, topic, &message).await?;
+        }
       }
     }
   }
