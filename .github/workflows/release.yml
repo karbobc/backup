@@ -7,15 +7,16 @@ on:
   workflow_dispatch:
 
 jobs:
-  release:
+  release-for-linux:
     name: Build for ${{ matrix.job.target }}
+    runs-on: ubuntu-latest
     strategy:
-      fail-fast: true
+      fail-fast: false
       matrix:
         job:
-          - { target: "x86_64-unknown-linux-musl", os: "ubuntu-latest" }
-          - { target: "x86_64-unknown-linux-gnu",  os: "ubuntu-latest" }
-    runs-on: ${{ matrix.job.os }}
+          - { target: "x86_64-unknown-linux-musl" }
+          - { target: "i686-unknown-linux-musl" }
+          - { target: "aarch64-unknown-linux-musl" }
     container:
       image: docker://ghcr.io/rust-cross/rust-musl-cross:${{ matrix.job.target }}
     steps:
