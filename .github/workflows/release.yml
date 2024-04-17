@@ -30,7 +30,6 @@ jobs:
 
       - name: Build release
         run: |
-          rustup target add ${{ matrix.job.target }}
           cargo build --release --target ${{ matrix.job.target }}
 
       - name: Upload artifact
