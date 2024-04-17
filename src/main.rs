@@ -136,7 +136,11 @@ fn compress_and_sign(
     .arg(src)
     .output()?;
   if output.status.success() {
-    debug!("compress file, current_dir: {}\n{}", env::current_dir()?.display(), String::from_utf8(output.stdout)?);
+    debug!(
+      "compress file, current_dir: {}\n{}",
+      env::current_dir()?.display(),
+      String::from_utf8(output.stdout)?
+    );
   } else {
     bail!("failed to compress: {}", String::from_utf8(output.stderr)?);
   }
