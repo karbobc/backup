@@ -6,6 +6,9 @@ on:
     branches: [ "master" ]
   workflow_dispatch:
 
+env:
+  VERSION: 0.1.0
+
 jobs:
   release-for-windows:
     name: Build for ${{ matrix.job.target }}
@@ -42,7 +45,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         run: |
           Push-Location target/${{ matrix.job.target }}/release
-          7z a backup-${{ github.ref }}.${{ matrix.job.target }}.zip backup.exe
+          7z a backup-${{ env.VERSION }}.${{ matrix.job.target }}.zip backup.exe
           Pop-Location
 
       - name: Upload to GitHub release
@@ -88,10 +91,11 @@ jobs:
 
       - name: Archive binary
         if: startsWith(github.ref, 'refs/tags/')
+        shell: bash
         run: |
           pushd target/${{ matrix.job.target }}/release
           tar -zcvf backup-${{ github.ref }}.${{ matrix.job.target }}.tar.gz backup
-          shasum -a 256 backup-${{ github.ref }}.${{ matrix.job.target }}.tar.gz > backup-${{ github.ref }}.${{ matrix.job.target }}.tar.gz.sha256
+          shasum -a 256 backup-${{ env.VERSION }}.${{ matrix.job.target }}.tar.gz > backup-${{ github.ref }}.${{ matrix.job.target }}.tar.gz.sha256
           popd
 
       - name: Upload to GitHub release
