@@ -227,6 +227,17 @@ async fn main() -> anyhow::Result<()> {
     info!("can not detect .env file");
   }
   let args = Args::parse();
+  if args.data_path.is_empty() {
+    bail!("data path can not be empty");
+  }
+  for path in &args.data_path {
+    if fs::metadata(path).is_err() {
+      bail!("data path [{path}] can not be found");
+    }
+  }
+  if args.rclone_remote_name.is_empty() {
+    bail!("rclone remote name can not be empty");
+  }
   if args.rclone_remote_path == "/" {
     bail!("rclone remote path can not equals to /");
   }
