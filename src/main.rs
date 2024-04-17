@@ -136,7 +136,7 @@ fn compress_and_sign(
     .arg(src)
     .output()?;
   if output.status.success() {
-    debug!("compress file:\n{}", String::from_utf8(output.stdout)?);
+    debug!("compress file, current_dir: {}\n{}", env::current_dir()?.display(), String::from_utf8(output.stdout)?);
   } else {
     bail!("failed to compress: {}", String::from_utf8(output.stderr)?);
   }
@@ -223,16 +223,8 @@ fn upload_by_rclone(
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-  // tracing
-  tracing_subscriber::fmt()
-    .with_env_filter(EnvFilter::from_default_env())
-    .with_timer(tracing_subscriber::fmt::time::time())
-    .init();
-
   // load dotenv
-  if dotenvy::dotenv().is_err() {
-    info!("can not detect .env file");
-  }
+  let is_load_dotenv = dotenvy::dotenv().is_ok();
 
   // cli
   let args = Args::parse();
@@ -244,7 +236,16 @@ async fn main() -> anyhow::Result<()> {
     }
   }
 
+  // tracing
+  tracing_subscriber::fmt()
+    .with_env_filter(EnvFilter::from_default_env())
+    .with_timer(tracing_subscriber::fmt::time::time())
+    .init();
+
   // check
+  if !is_load_dotenv {
+    info!("can not detect .env file");
+  }
   if args.data_path.is_empty() {
     bail!("data path can not be empty");
   }
@@ -261,7 +262,8 @@ async fn main() -> anyhow::Result<()> {
   }
 
   let temp_dir = TempDir::new()?;
-  let temp_data_dir = format!("{}/data", temp_dir.path().to_string_lossy());
+  let temp_data_dir_name = String::from("backup_data");
+  let temp_data_dir = format!("{}/{temp_data_dir_name}", temp_dir.path().to_string_lossy());
   let now = Local::now();
   let data_compress_file_name = format!("backup_{}.tar.gz", now.format("%Y%m%d_%H%M%S"));
   let data_compress_sha256_file_name = format!("{data_compress_file_name}.sha256");
@@ -280,7 +282,7 @@ async fn main() -> anyhow::Result<()> {
   }
   // compress and sign with sha256 source data to temp data directory
   compress_and_sign(
-    &temp_data_dir,
+    &temp_data_dir_name,
     &data_compress_file_name,
     &data_compress_sha256_file_name,
   )?;
