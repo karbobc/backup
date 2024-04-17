@@ -36,8 +36,8 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.platform.target }}-artifact
-          path: target/${{ matrix.platform.target }}/release/backup
+          name: ${{ matrix.job.target }}-artifact
+          path: target/${{ matrix.job.target }}/release/backup
           if-no-files-found: error
 
       - name: Archive binary
