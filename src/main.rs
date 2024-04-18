@@ -14,20 +14,20 @@ use tracing_subscriber::EnvFilter;
 #[command(name = "backup", arg_required_else_help = true, about, version, author)]
 struct Args {
   /// Backup data directory.
-  #[arg(long, env = "BACKUP_DATA_PATH", value_delimiter = ',', required = true)]
-  data_path: Vec<String>,
+  #[arg(long, env = "BACKUP_DATA_PATH", value_delimiter = ',')]
+  data_path: Option<Vec<String>>,
 
   /// Backup rotate.
   #[arg(long, env = "BACKUP_ROTATE", default_value = "30")]
   rotate: usize,
 
   /// Rclone remote.
-  #[arg(long, env = "RCLONE_REMOTE_NAME", value_delimiter = ',', required = true)]
-  rclone_remote_name: Vec<String>,
+  #[arg(long, env = "RCLONE_REMOTE_NAME", value_delimiter = ',')]
+  rclone_remote_name: Option<Vec<String>>,
 
   /// Rclone remote path.
-  #[arg(long, env = "RCLONE_REMOTE_PATH", required = true)]
-  rclone_remote_path: String,
+  #[arg(long, env = "RCLONE_REMOTE_PATH")]
+  rclone_remote_path: Option<String>,
 
   /// Database type.
   #[arg(long, env = "DB_TYPE", value_enum)]
@@ -263,18 +263,27 @@ async fn main() -> anyhow::Result<()> {
   if !is_load_dotenv {
     info!("can not detect .env file");
   }
-  if args.data_path.is_empty() {
+  let data_path = args.data_path.expect("data path can not be empty");
+  let rclone_remote_name = args.rclone_remote_name.expect("rclone remote name can not be empty");
+  let rclone_remote_path = args.rclone_remote_path.expect("rclone remote path can not be empty");
+  if data_path.is_empty() {
     bail!("data path can not be empty");
   }
-  for path in &args.data_path {
+  for path in data_path.iter() {
     if fs::metadata(path).is_err() {
       bail!("data path [{path}] can not be found");
     }
   }
-  if args.rclone_remote_name.iter().any(|s| s.is_empty()) {
+  if rclone_remote_name.is_empty() {
+    bail!("rclone remote name can not be empty");
+  }
+  if rclone_remote_name.iter().any(|s| s.is_empty()) {
     bail!("rclone remote name can not contain empty name");
   }
-  if args.rclone_remote_path == "/" {
+  if rclone_remote_path.is_empty() {
+    bail!("rclone remote path can not be empty");
+  }
+  if rclone_remote_path == "/" {
     bail!("rclone remote path can not equals to /");
   }
 
@@ -283,14 +292,14 @@ async fn main() -> anyhow::Result<()> {
   let temp_data_dir = format!("{}/{temp_data_dir_name}", temp_dir.path().to_string_lossy());
   let now = Local::now();
   let data_compress_file_name = format!("backup_{}.tar.gz", now.format("%Y%m%d_%H%M%S"));
-  let data_compress_sha256_file_name = format!("{data_compress_file_name}.sha256");
+  let data_compress_sha256_file_name = format!("{}.sha256", &data_compress_file_name);
 
   fs::create_dir_all(&temp_data_dir)?;
   env::set_current_dir(temp_dir.path())?;
   info!("backup in temp file: {}", temp_dir.path().to_string_lossy());
 
   // copy source data to temp data directory
-  copy_files(&args.data_path, &temp_data_dir)?;
+  copy_files(&data_path, &temp_data_dir)?;
   // dump database data to temp data directory
   if let (Some(db_type), Some(container_name)) = (args.db_type, args.container_name) {
     let db_dump_file_name = format!("dump_{}.sql", now.format("%Y%m%d_%H%M%S"));
@@ -304,20 +313,17 @@ async fn main() -> anyhow::Result<()> {
     &data_compress_sha256_file_name,
   )?;
   // upload
-  for remote_name in args.rclone_remote_name {
+  for remote_name in rclone_remote_name.iter() {
     if let Err(e) = upload_by_rclone(
-      &remote_name,
-      &args.rclone_remote_path,
+      remote_name,
+      &rclone_remote_path,
       &vec![data_compress_file_name.clone(), data_compress_sha256_file_name.clone()],
       &args.rotate,
     ) {
       error!("failed to upload to remote: [{remote_name}], error: {e}");
     } else {
       // notification
-      let message = format!(
-        "Backup successfully to remote: [{remote_name}:{}]",
-        &args.rclone_remote_path
-      );
+      let message = format!("Backup successfully to remote: [{remote_name}:{}]", &rclone_remote_path);
       if let (Some(base_url), Some(username), Some(password), Some(topic)) = (
         &args.ntfy_base_url,
         &args.ntfy_username,
@@ -330,6 +336,6 @@ async fn main() -> anyhow::Result<()> {
       }
     }
   }
-  info!("backup successfully");
+  info!("all backups completed");
   Ok(())
 }
