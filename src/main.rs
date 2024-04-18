@@ -158,12 +158,13 @@ fn compress_and_sign(
 ) -> anyhow::Result<()> {
   // compress
   let mut command = std::process::Command::new("tar");
-  command.arg("-zcvf").arg(compress_file_name).arg(src);
+  command.arg("-zcvf").arg(compress_file_name);
   if let Some(pattern_vec) = exclude {
     for pattern in pattern_vec {
       command.arg("--exclude").arg(pattern);
     }
   }
+  command.arg(src);
   let output = command.output()?;
   if output.status.success() {
     debug!(
