@@ -111,7 +111,7 @@ fn copy_files(src: &Vec<String>, dest: &String) -> anyhow::Result<()> {
 }
 
 fn copy_files_by_docker(src: &String, dest: &String) -> anyhow::Result<()> {
-  let output = std::process::Command::new("cp")
+  let output = std::process::Command::new("docker")
     .arg("cp")
     .arg(src)
     .arg(dest)
