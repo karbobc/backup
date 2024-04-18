@@ -53,6 +53,10 @@ struct Args {
   #[arg(long, env = "NTFY_TOPIC")]
   ntfy_topic: Option<String>,
 
+  /// dotenv file path.
+  #[arg(long)]
+  env_file: Option<String>,
+
   /// Enable debug log.
   #[arg(long)]
   debug: bool,
@@ -227,10 +231,19 @@ fn upload_by_rclone(
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
-  // load dotenv
-  let is_load_dotenv = dotenvy::dotenv().is_ok();
+  let is_load_dotenv;
+  // parse cli and load .env file
+  let args = Args::parse();
+  if let Some(env_file) = &args.env_file {
+    if dotenvy::from_path(env_file).is_err() {
+      bail!("can not load .env file from '{env_file}'");
+    }
+    is_load_dotenv = true;
+  } else {
+    is_load_dotenv = dotenvy::dotenv().is_ok();
+  }
 
-  // cli
+  // reparse cli
   let args = Args::parse();
   if env::var("RUST_LOG").is_err() {
     if args.debug {
