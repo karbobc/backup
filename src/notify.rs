@@ -1,5 +1,5 @@
-use anyhow::bail;
 use std::collections::HashMap;
+use tracing::log::error;
 
 pub async fn notify_by_nty(
   base_url: &String,
@@ -19,7 +19,7 @@ pub async fn notify_by_nty(
     .send()
     .await?;
   if !response.status().is_success() {
-    bail!("failed to send notification, response: {}", response.text().await?);
+    error!("failed to send notification, response: {}", response.text().await?);
   }
   Ok(())
 }
