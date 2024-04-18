@@ -13,51 +13,57 @@ use tracing_subscriber::EnvFilter;
 #[derive(Parser, Debug)]
 #[command(name = "backup", arg_required_else_help = true, about, version, author)]
 struct Args {
-  /// Backup data directory.
-  #[arg(long, env = "BACKUP_DATA_PATH", value_delimiter = ',')]
+  /// Backup data directory
+  /// Backup data directory from docker when it starts with docker://
+  /// e.g. docker://container_name:/path/to/data
+  #[arg(long, env = "BACKUP_DATA_PATH", value_delimiter = ',', verbatim_doc_comment)]
   data_path: Option<Vec<String>>,
 
-  /// Backup rotate.
-  #[arg(long, env = "BACKUP_ROTATE", default_value = "30")]
-  rotate: usize,
-
-  /// Rclone remote.
+  /// Rclone remote
   #[arg(long, env = "RCLONE_REMOTE_NAME", value_delimiter = ',')]
   rclone_remote_name: Option<Vec<String>>,
 
-  /// Rclone remote path.
+  /// Rclone remote path
   #[arg(long, env = "RCLONE_REMOTE_PATH")]
   rclone_remote_path: Option<String>,
 
-  /// Database type.
+  /// Backup rotate
+  #[arg(long, env = "BACKUP_ROTATE", default_value = "30")]
+  rotate: usize,
+
+  /// Database type
   #[arg(long, env = "DB_TYPE", value_enum)]
   db_type: Option<DatabaseType>,
 
-  /// Container name.
-  #[arg(long, env = "CONTAINER_NAME")]
-  container_name: Option<String>,
+  /// Database Container name
+  #[arg(long, env = "DB_CONTAINER_NAME")]
+  db_container_name: Option<String>,
 
-  /// Ntfy basic url.
+  /// Ntfy basic url
   #[arg(long, env = "NTFY_BASE_URL")]
   ntfy_base_url: Option<String>,
 
-  /// Ntfy username.
+  /// Ntfy username
   #[arg(long, env = "NTFY_USERNAME")]
   ntfy_username: Option<String>,
 
-  /// Ntfy password.
+  /// Ntfy password
   #[arg(long, env = "NTFY_PASSWORD")]
   ntfy_password: Option<String>,
 
-  /// Ntfy topic.
+  /// Ntfy topic
   #[arg(long, env = "NTFY_TOPIC")]
   ntfy_topic: Option<String>,
 
-  /// dotenv file path.
+  /// Dotenv file path
   #[arg(long)]
   env_file: Option<String>,
 
-  /// Enable debug log.
+  /// Exclude files matching pattern
+  #[arg(long)]
+  exclude: Option<Vec<String>>,
+
+  /// Enable debug log
   #[arg(long)]
   debug: bool,
 }
@@ -104,6 +110,22 @@ fn copy_files(src: &Vec<String>, dest: &String) -> anyhow::Result<()> {
   Ok(())
 }
 
+fn copy_files_by_docker(src: &String, dest: &String) -> anyhow::Result<()> {
+  let output = std::process::Command::new("cp")
+    .arg("cp")
+    .arg(src)
+    .arg(dest)
+    .arg("-q")
+    .output()?;
+  if !output.status.success() {
+    bail!(
+      "failed to copy source data by docker, error: {}",
+      String::from_utf8(output.stderr)?
+    );
+  }
+  Ok(())
+}
+
 fn dump_db_by_docker(db_dump_path: &String, container_name: &String, db_type: &DatabaseType) -> anyhow::Result<()> {
   let db_dump_cmd = match db_type {
     DatabaseType::Mysql => {
@@ -130,15 +152,19 @@ fn dump_db_by_docker(db_dump_path: &String, container_name: &String, db_type: &D
 
 fn compress_and_sign(
   src: &String,
+  exclude: &Option<Vec<String>>,
   compress_file_name: &String,
   compress_sha256_file_name: &String,
 ) -> anyhow::Result<()> {
   // compress
-  let output = std::process::Command::new("tar")
-    .arg("-zcvf")
-    .arg(compress_file_name)
-    .arg(src)
-    .output()?;
+  let mut command = std::process::Command::new("tar");
+  command.arg("-zcvf").arg(compress_file_name).arg(src);
+  if let Some(pattern_vec) = exclude {
+    for pattern in pattern_vec {
+      command.arg("--exclude").arg(pattern);
+    }
+  }
+  let output = command.output()?;
   if output.status.success() {
     debug!(
       "compress file, current_dir: {}\n{}",
@@ -269,10 +295,8 @@ async fn main() -> anyhow::Result<()> {
   if data_path.is_empty() {
     bail!("data path can not be empty");
   }
-  for path in data_path.iter() {
-    if fs::metadata(path).is_err() {
-      bail!("data path [{path}] can not be found");
-    }
+  if data_path.iter().any(|s| s.is_empty()) {
+    bail!("data path can not contain empty path");
   }
   if rclone_remote_name.is_empty() {
     bail!("rclone remote name can not be empty");
@@ -299,9 +323,19 @@ async fn main() -> anyhow::Result<()> {
   info!("backup in temp file: {}", temp_dir.path().to_string_lossy());
 
   // copy source data to temp data directory
-  copy_files(&data_path, &temp_data_dir)?;
+  let (docker_data_path, non_docker_data_path): (Vec<String>, Vec<String>) =
+    data_path.into_iter().partition(|s| s.starts_with("docker://"));
+  if !docker_data_path.is_empty() {
+    for path in docker_data_path.iter() {
+      let src = path.strip_prefix("docker://").unwrap().to_string();
+      copy_files_by_docker(&src, &temp_data_dir)?;
+    }
+  }
+  if !non_docker_data_path.is_empty() {
+    copy_files(&non_docker_data_path, &temp_data_dir)?;
+  }
   // dump database data to temp data directory
-  if let (Some(db_type), Some(container_name)) = (args.db_type, args.container_name) {
+  if let (Some(db_type), Some(container_name)) = (args.db_type, args.db_container_name) {
     let db_dump_file_name = format!("dump_{}.sql", now.format("%Y%m%d_%H%M%S"));
     let db_dump_path = format!("{}/{}", temp_data_dir, db_dump_file_name);
     dump_db_by_docker(&db_dump_path, &container_name, &db_type)?;
@@ -309,6 +343,7 @@ async fn main() -> anyhow::Result<()> {
   // compress and sign with sha256 source data to temp data directory
   compress_and_sign(
     &temp_data_dir_name,
+    &args.exclude,
     &data_compress_file_name,
     &data_compress_sha256_file_name,
   )?;
