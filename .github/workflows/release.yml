@@ -79,6 +79,11 @@ jobs:
         with:
           prefix-key: ${{ matrix.job.target }}
 
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y musl-tools
+
       - name: Build release
         uses: houseabsolute/actions-rust-cross@v0
         with:
