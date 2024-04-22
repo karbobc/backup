@@ -35,7 +35,7 @@ jobs:
       - name: Build release
         run: |
           rustup target add ${{ matrix.job.target }}
-          cargo build --release --target ${{ matrix.job.target }}
+          cargo build --release --locked --target ${{ matrix.job.target }}
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
