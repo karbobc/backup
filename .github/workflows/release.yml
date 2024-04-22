@@ -90,6 +90,7 @@ jobs:
           command: build
           args: --release --locked
           target: ${{ matrix.job.target }}
+          strip: true
 
       - name: Upx compress binary
         uses: crazy-max/ghaction-upx@v3
