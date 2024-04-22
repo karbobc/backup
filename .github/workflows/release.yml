@@ -86,7 +86,7 @@ jobs:
           cargo build --release --target ${{ matrix.job.target }}
 
       - name: Upx compress binary
-        uses: crazy-max/ghaction-upx@v1
+        uses: crazy-max/ghaction-upx@v3
         with:
           files: target/${{ matrix.job.target }}/release/backup
           args: --best --lzma
