@@ -356,7 +356,7 @@ async fn main() -> anyhow::Result<()> {
       &vec![data_compress_file_name.clone(), data_compress_sha256_file_name.clone()],
       &args.rotate,
     ) {
-      error!("failed to upload to remote: [{remote_name}], error: {e}");
+      error!("failed to upload to remote: [{remote_name}], error: {:?}", e);
     } else {
       // notification
       let message = format!("Backup successfully to remote: [{remote_name}:{}]", &rclone_remote_path);
