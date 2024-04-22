@@ -27,6 +27,10 @@ struct Args {
   #[arg(long, env = "RCLONE_REMOTE_PATH")]
   rclone_remote_path: Option<String>,
 
+  /// Rclone binary path
+  #[arg(long, env = "RCLONE_BIN_PATH", default_value = "rclone")]
+  rclone_bin_path: Option<String>,
+
   /// Backup rotate
   #[arg(long, env = "BACKUP_ROTATE", default_value = "30")]
   rotate: usize,
@@ -197,11 +201,12 @@ fn upload_by_rclone(
   remote_name: &String,
   remote_path: &String,
   local_path: &Vec<String>,
+  bin_path: &String,
   rotate: &usize,
 ) -> anyhow::Result<()> {
   let remote = format!("{remote_name}:{remote_path}");
   for local in local_path {
-    let output = std::process::Command::new("rclone")
+    let output = std::process::Command::new(bin_path)
       .arg("copy")
       .arg(local)
       .arg(&remote)
@@ -217,7 +222,7 @@ fn upload_by_rclone(
       );
     }
   }
-  let output = std::process::Command::new("rclone")
+  let output = std::process::Command::new(bin_path)
     .arg("lsjson")
     .arg(&remote)
     .output()?;
@@ -237,7 +242,7 @@ fn upload_by_rclone(
     for _ in 0..cut_count {
       if let Some(rclone_ls) = rclone_ls_vec.pop() {
         let remote = format!("{}:{}/{}", remote_name, remote_path, rclone_ls.name);
-        let output = std::process::Command::new("rclone")
+        let output = std::process::Command::new(bin_path)
           .arg("deletefile")
           .arg(&remote)
           .output()?;
@@ -293,6 +298,7 @@ async fn main() -> anyhow::Result<()> {
   let data_path = args.data_path.expect("data path can not be empty");
   let rclone_remote_name = args.rclone_remote_name.expect("rclone remote name can not be empty");
   let rclone_remote_path = args.rclone_remote_path.expect("rclone remote path can not be empty");
+  let rclone_bin_path = args.rclone_bin_path.expect("rclone bin path can not be empty");
   if data_path.is_empty() {
     bail!("data path can not be empty");
   }
@@ -354,9 +360,10 @@ async fn main() -> anyhow::Result<()> {
       remote_name,
       &rclone_remote_path,
       &vec![data_compress_file_name.clone(), data_compress_sha256_file_name.clone()],
+      &rclone_bin_path,
       &args.rotate,
     ) {
-      error!("failed to upload to remote: [{remote_name}], error: {:?}", e);
+      error!("failed to upload to remote: [{remote_name}], error: {e}");
     } else {
       // notification
       let message = format!("Backup successfully to remote: [{remote_name}:{}]", &rclone_remote_path);
