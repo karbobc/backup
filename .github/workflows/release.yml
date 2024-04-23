@@ -39,12 +39,6 @@ jobs:
           target: ${{ matrix.job.target }}
           strip: true
 
-      - name: Upx compress binary
-        uses: crazy-max/ghaction-upx@v3
-        with:
-          files: target/${{ matrix.job.target }}/release/backup
-          args: --best --lzma
-
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
