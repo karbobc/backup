@@ -264,6 +264,7 @@ fn upload_by_rclone(
 
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
+  let start_time = std::time::Instant::now();
   let is_load_dotenv;
   // parse cli and load .env file
   let args = Args::parse();
@@ -413,6 +414,7 @@ async fn main() -> anyhow::Result<()> {
       notify::notify_by_nty(base_url, username, password, topic, &message).await?;
     }
   }
-  info!("all backups completed");
+  let duration = format!("{:.2}", (std::time::Instant::now() - start_time).as_secs_f64());
+  info!("all backups completed in {} seconds", duration);
   Ok(())
 }
