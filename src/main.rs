@@ -5,6 +5,7 @@ use chrono::Local;
 use clap::{Parser, ValueEnum};
 use serde::{Deserialize, Serialize};
 use std::fmt::Debug;
+use std::sync::Arc;
 use std::{env, fs};
 use tempfile::TempDir;
 use tracing::{debug, error, info, warn};
@@ -355,28 +356,61 @@ async fn main() -> anyhow::Result<()> {
     &data_compress_sha256_file_name,
   )?;
   // upload
-  for remote_name in rclone_remote_name.iter() {
-    if let Err(e) = upload_by_rclone(
-      remote_name,
-      &rclone_remote_path,
-      &vec![data_compress_file_name.clone(), data_compress_sha256_file_name.clone()],
-      &rclone_bin_path,
-      &args.rotate,
-    ) {
-      error!("failed to upload to remote: [{remote_name}], error: {e}");
-    } else {
-      // notification
-      let message = format!("Backup successfully to remote: [{remote_name}:{}]", &rclone_remote_path);
-      if let (Some(base_url), Some(username), Some(password), Some(topic)) = (
-        &args.ntfy_base_url,
-        &args.ntfy_username,
-        &args.ntfy_password,
-        &args.ntfy_topic,
-      ) {
-        if !base_url.is_empty() && !username.is_empty() && !password.is_empty() && !topic.is_empty() {
-          notify::notify_by_nty(base_url, username, password, topic, &message).await?;
+  let mut handles = Vec::new();
+  let upload_success_arc = Arc::new(std::sync::Mutex::new(Vec::new()));
+  let upload_failed_arc = Arc::new(std::sync::Mutex::new(Vec::new()));
+  for remote_name in rclone_remote_name.into_iter() {
+    let remote_path = rclone_remote_path.to_string();
+    let bin_path = rclone_bin_path.to_string();
+    let local_path = vec![
+      data_compress_file_name.to_string(),
+      data_compress_sha256_file_name.to_string(),
+    ];
+    let upload_success_arc_clone = upload_success_arc.clone();
+    let upload_failed_arc_clone = upload_failed_arc.clone();
+    let handle = std::thread::spawn(move || {
+      match upload_by_rclone(&remote_name, &remote_path, &local_path, &bin_path, &args.rotate) {
+        Ok(_) => {
+          let mut vec = upload_success_arc_clone.lock().unwrap();
+          vec.push(remote_name);
+        }
+        Err(err) => {
+          error!("failed to upload to remote: [{remote_name}], error: {err}");
+          let mut vec = upload_failed_arc_clone.lock().unwrap();
+          vec.push(remote_name);
         }
       }
+    });
+    handles.push(handle);
+  }
+  // waiting for all threads done
+  for handle in handles {
+    handle.join().unwrap();
+  }
+  // notification
+  let mut message = String::new();
+  let vec = Arc::try_unwrap(upload_success_arc)
+    .expect("failed to unwrap upload_success_arc")
+    .into_inner()?;
+  if !vec.is_empty() {
+    message.push_str("The backup was successful as follows:\n");
+    vec.iter().for_each(|s| message.push_str(format!("{s}\n").as_str()));
+  }
+  let vec = Arc::try_unwrap(upload_failed_arc)
+    .expect("failed to unwrap upload_failed_arc")
+    .into_inner()?;
+  if !vec.is_empty() {
+    message.push_str("The backup failed as follows:\n");
+    vec.iter().for_each(|s| message.push_str(format!("{s}\n").as_str()));
+  }
+  if let (Some(base_url), Some(username), Some(password), Some(topic)) = (
+    &args.ntfy_base_url,
+    &args.ntfy_username,
+    &args.ntfy_password,
+    &args.ntfy_topic,
+  ) {
+    if [base_url, username, password, topic].into_iter().all(|s| !s.is_empty()) {
+      notify::notify_by_nty(base_url, username, password, topic, &message).await?;
     }
   }
   info!("all backups completed");
