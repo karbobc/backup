@@ -5,6 +5,13 @@ edition = "2021"
 authors = ["Karbob <karbobc@gmail.com>"]
 description = "Backup Tool"
 
+# https://github.com/johnthagen/min-sized-rust
+[profile.release]
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
