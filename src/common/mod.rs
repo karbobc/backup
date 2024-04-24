@@ -61,7 +61,8 @@ pub async fn dump_db_by_docker(
   if output.status.success() {
     tokio::fs::write(db_dump_path, &output.stdout)
       .await
-      .expect("failed to write database backup data to file")
+      .expect("failed to write database backup data to file");
+    debug!("dump database data to [{db_dump_path}] by docker");
   } else {
     bail!("failed to dump database: {}", String::from_utf8(output.stderr)?);
   }
