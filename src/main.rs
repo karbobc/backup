@@ -5,6 +5,7 @@ mod notify;
 use anyhow::bail;
 use chrono::Local;
 use clap::Parser;
+use std::io::IsTerminal;
 use std::sync::Arc;
 use std::{env, fs};
 use tempfile::TempDir;
@@ -39,6 +40,7 @@ async fn main() -> anyhow::Result<()> {
   // tracing
   tracing_subscriber::fmt()
     .with_env_filter(EnvFilter::from_default_env())
+    .with_ansi(std::io::stdout().is_terminal())
     .with_timer(tracing_subscriber::fmt::time::time())
     .init();
 
