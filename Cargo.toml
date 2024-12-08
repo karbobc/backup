@@ -3,7 +3,7 @@ name = "backup"
 version = "0.3.2"
 edition = "2021"
 authors = ["Karbob <karbobc@gmail.com>"]
-description = "Backup Tool"
+description = "A backup tool using rclone"
 
 # https://github.com/johnthagen/min-sized-rust
 [profile.release]
