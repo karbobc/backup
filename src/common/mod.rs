@@ -13,7 +13,7 @@ pub async fn copy_files(src: &Vec<String>, dest: &String) -> anyhow::Result<()> 
     .await?;
   if !output.status.success() {
     bail!(
-      "failed to copy source data, error: {}",
+      "Failed to copy source data, error: {}",
       String::from_utf8(output.stderr)?
     );
   }
@@ -30,7 +30,7 @@ pub async fn copy_files_by_docker(src: &String, dest: &String) -> anyhow::Result
     .await?;
   if !output.status.success() {
     bail!(
-      "failed to copy source data by docker, error: {}",
+      "Failed to copy source data by docker, error: {}",
       String::from_utf8(output.stderr)?
     );
   }
@@ -57,14 +57,14 @@ pub async fn dump_db_by_docker(
     .arg(db_dump_cmd)
     .output()
     .await
-    .expect("failed to dump database");
+    .expect("Failed to dump database");
   if output.status.success() {
     tokio::fs::write(db_dump_path, &output.stdout)
       .await
       .expect("failed to write database backup data to file");
-    debug!("dump database data to [{db_dump_path}] by docker");
+    debug!("Dump database data to [{db_dump_path}] by docker");
   } else {
-    bail!("failed to dump database: {}", String::from_utf8(output.stderr)?);
+    bail!("Failed to dump database: {}", String::from_utf8(output.stderr)?);
   }
   Ok(())
 }
@@ -92,7 +92,7 @@ pub async fn compress_and_sign(
       String::from_utf8(output.stdout)?
     );
   } else {
-    bail!("failed to compress: {}", String::from_utf8(output.stderr)?);
+    bail!("Failed to compress: {}", String::from_utf8(output.stderr)?);
   }
   // sign
   let output = tokio::process::Command::new("shasum")
@@ -108,7 +108,7 @@ pub async fn compress_and_sign(
       compress_file_name, compress_sha256_file_name
     );
   } else {
-    bail!("failed to shasum, error: {}", String::from_utf8(output.stderr)?);
+    bail!("Failed to shasum, error: {}", String::from_utf8(output.stderr)?);
   }
   Ok(())
 }
@@ -128,10 +128,10 @@ pub fn upload_by_rclone(
       .arg(&remote)
       .output()?;
     if output.status.success() {
-      info!("copy file from [{}] to [{}] by rclone", local, remote);
+      info!("Copy file from [{}] to [{}] by rclone", local, remote);
     } else {
       warn!(
-        "failed to copy file from [{}] to [{}] by rclone, error: {}",
+        "Failed to copy file from [{}] to [{}] by rclone, error: {}",
         local,
         remote,
         String::from_utf8(output.stderr)?
@@ -144,7 +144,7 @@ pub fn upload_by_rclone(
     .output()?;
   if !output.status.success() {
     bail!(
-      "failed to ls json by rclone, error: {}",
+      "Failed to ls json by rclone, error: {}",
       String::from_utf8(output.stderr)?
     );
   }
@@ -163,10 +163,10 @@ pub fn upload_by_rclone(
           .arg(&remote)
           .output()?;
         if output.status.success() {
-          info!("delete [{}] by rclone", remote);
+          info!("Delete [{}] by rclone", remote);
         } else {
           warn!(
-            "failed to delete [{}] by rclone, error: {}",
+            "Failed to delete [{}] by rclone, error: {}",
             remote,
             String::from_utf8(output.stderr)?
           );
