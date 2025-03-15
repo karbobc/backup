@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use tracing::log::error;
+use tracing::error;
 
 pub async fn notify_by_ntfy(
   base_url: &String,
