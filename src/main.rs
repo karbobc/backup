@@ -81,7 +81,7 @@ async fn main() -> anyhow::Result<()> {
     let db_type = database_args.db_type.unwrap();
     let container_name = database_args.db_container_name.unwrap();
     let db_dump_file_name = format!("dump_{}.sql", now.format("%Y%m%d_%H%M%S"));
-    let db_dump_path = format!("{}/{}", temp_data_dir, db_dump_file_name);
+    let db_dump_path = format!("{temp_data_dir}/{db_dump_file_name}");
     common::dump_db_by_docker(&db_dump_path, &container_name, &db_type).await?;
   }
 
