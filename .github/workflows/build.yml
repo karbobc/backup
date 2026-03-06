@@ -147,7 +147,7 @@ jobs:
           strip: false
 
       - name: Upx compress binary
-        uses: crazy-max/ghaction-upx@v3
+        uses: crazy-max/ghaction-upx@v4
         with:
           files: target/${{ matrix.job.target }}/release/backup
           args: --best --lzma
