@@ -55,7 +55,7 @@ async fn main() -> anyhow::Result<()> {
   let temp_data_dir = format!("{}/{temp_data_dir_name}", temp_dir.path().to_string_lossy());
   let now = Local::now();
   let data_compress_file_name = format!("backup_{}.tar.gz", now.format("%Y%m%d_%H%M%S"));
-  let data_compress_sha256_file_name = format!("{}.sha256", &data_compress_file_name);
+  let data_compress_sha256_file_name = format!("{}.sha256", data_compress_file_name);
 
   fs::create_dir_all(&temp_data_dir)?;
   env::set_current_dir(temp_dir.path())?;
@@ -140,7 +140,7 @@ async fn main() -> anyhow::Result<()> {
     message.push_str("The backup was successful as follows:\n");
     vec
       .iter()
-      .for_each(|s| message.push_str(format!("{s}:{}\n", &rclone_remote_path).as_str()));
+      .for_each(|s| message.push_str(format!("{s}:{}\n", rclone_remote_path).as_str()));
   }
   let vec = Arc::try_unwrap(upload_failed_arc)
     .expect("Failed to unwrap upload_failed_arc")
@@ -149,7 +149,7 @@ async fn main() -> anyhow::Result<()> {
     message.push_str("The backup failed as follows:\n");
     vec
       .iter()
-      .for_each(|s| message.push_str(format!("{s}:{}\n", &rclone_remote_path).as_str()));
+      .for_each(|s| message.push_str(format!("{s}:{}\n", rclone_remote_path).as_str()));
   }
   info!("{}", message);
 
