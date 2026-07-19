@@ -30,18 +30,19 @@ async fn main() -> anyhow::Result<()> {
 
   // reparse cli
   let args = cli::Args::parse();
-  if env::var("RUST_LOG").is_err() {
-    if args.debug {
-      env::set_var("RUST_LOG", "backup=debug,reqwest=debug");
+  let env_filter = match env::var("RUST_LOG") {
+    Ok(_) | Err(env::VarError::NotUnicode(_)) => EnvFilter::from_default_env(),
+    Err(env::VarError::NotPresent) => EnvFilter::new(if args.debug {
+      "backup=debug,reqwest=debug"
     } else {
-      env::set_var("RUST_LOG", "backup=info,reqwest=warn");
-    }
-  }
+      "backup=info,reqwest=warn"
+    }),
+  };
   args.check_valid()?;
 
   // tracing
   tracing_subscriber::fmt()
-    .with_env_filter(EnvFilter::from_default_env())
+    .with_env_filter(env_filter)
     .with_ansi(std::io::stdout().is_terminal())
     .with_timer(tracing_subscriber::fmt::time::time())
     .init();
